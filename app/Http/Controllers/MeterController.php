@@ -57,27 +57,31 @@ public function addUnits(Request $request)
     }
 }
 
-public function updateMeterData(Request $request, $meterNumber)
+public function updateMeterData(Request $request)
 {
-    // Retrieve the existing meter data based on the meter number
+    $validatedData = $request->validate([
+        'meter_number' => 'required|string',
+        'channel1_units' => 'required|numeric',
+        'channel2_units' => 'required|numeric',
+        'channel3_units' => 'required|numeric',
+    ]);
+
+    $meterNumber = $validatedData['meter_number'];
+
     $meterData = DB::table('meter_readings')
         ->select('meter_number', 'channel1_units', 'channel2_units', 'channel3_units')
         ->where('meter_number', $meterNumber)
         ->first();
 
-    // Check if meter data exists
     if ($meterData) {
-        // Get additional units from the API request
-        $additionalChannel1Units = $request->input('channel1_units', 0);
-        $additionalChannel2Units = $request->input('channel2_units', 0);
-        $additionalChannel3Units = $request->input('channel3_units', 0);
+        $incomingChannel1Units = $validatedData['channel1_units'];
+        $incomingChannel2Units = $validatedData['channel2_units'];
+        $incomingChannel3Units = $validatedData['channel3_units'];
 
-        // Add the additional units to the existing units
-        $totalChannel1Units = $meterData->channel1_units + $additionalChannel1Units;
-        $totalChannel2Units = $meterData->channel2_units + $additionalChannel2Units;
-        $totalChannel3Units = $meterData->channel3_units + $additionalChannel3Units;
+        $totalChannel1Units = $meterData->channel1_units - $incomingChannel1Units;
+        $totalChannel2Units = $meterData->channel2_units - $incomingChannel2Units;
+        $totalChannel3Units = $meterData->channel3_units - $incomingChannel3Units;
 
-        // Update the meter data with the new total units
         DB::table('meter_readings')
             ->where('meter_number', $meterNumber)
             ->update([
@@ -86,21 +90,18 @@ public function updateMeterData(Request $request, $meterNumber)
                 'channel3_units' => $totalChannel3Units,
             ]);
 
-        // Prepare the response data
         $updatedMeterData = [
-            'meter_number' => $meterData->meter_number,
-            'channel1_units' => $totalChannel1Units,
-            'channel2_units' => $totalChannel2Units,
-            'channel3_units' => $totalChannel3Units,
+            'c1' => $totalChannel1Units,
+            'c2' => $totalChannel2Units,
+            'c3' => $totalChannel3Units,
         ];
 
-        // Return the response with the updated total units
         return response()->json($updatedMeterData);
     } else {
-        // Return an error response if the meter number is not found
-        return response()->json(['error' => 'Meter number not found'], 404);
+        return response()->json(['error' => 'Meter number not found', 'success'=> 'fail'], 404);
     }
 }
+
 
 
 }
